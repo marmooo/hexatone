@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 360 360"
+     width="360" height="360">
+  <defs>
+    <polygon id="hex"
+      points="
+        50,0
+        93,25
+        93,75
+        50,100
+        7,75
+        7,25
+      " />
+  </defs>
+  <use href="#hex" x="189" y="23" fill="black"/>
+  <use href="#hex" x="130" y="130" fill="black"/>
+  <use href="#hex" x="247" y="130" fill="black"/>
+  <use href="#hex" x="189" y="237" fill="black"/>
+  <g fill="none" stroke="black" stroke-width="10" stroke-linejoin="round">
+    <use href="#hex" x="71"  y="23"/>
+    <use href="#hex" x="189" y="23"/>
+    <use href="#hex" x="13"  y="130"/>
+    <use href="#hex" x="130" y="130"/>
+    <use href="#hex" x="247" y="130"/>
+    <use href="#hex" x="71"  y="237"/>
+    <use href="#hex" x="189" y="237"/>
+  </g>
+</svg>
