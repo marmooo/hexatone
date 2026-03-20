@@ -35,13 +35,14 @@
       #panel { height: calc(100vh - 60px); }
       @media (orientation: landscape) {
         .panel { flex-direction: row; }
-        .panel:not(.single) .group.second { margin-left: -4%; }
+        .panel:not(.single) .group { width:50%; }
+        .panel:not(.single) .group.second { margin-left:-4%; }
       }
       @media (orientation: portrait) {
         .panel { flex-direction: column; }
       }
-      .panel { width: 100%; height: 100%; display: flex; flex: 1; justify-content: center;
-        position:relative; overflow:hidden; -webkit-user-select: none; user-select: none; touch-action:none; }
+      .panel { width:100%; height:100%; display:flex; flex:1; justify-content:center;
+        position:relative; overflow:hidden; -webkit-user-select:none; user-select:none; touch-action:none; }
       .panel.single .group.second { display: none; }
       .group { width:100%; aspect-ratio:810.6 / 660; }
       html[data-bs-theme="dark"] .favicon { filter: invert(1) hue-rotate(180deg); }
