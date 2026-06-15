@@ -61,11 +61,11 @@ defineShadowElement("midi-drum", (shadow) => {
   shadow.querySelector("select").onchange = setProgramChange;
 });
 
-function setEffect(groupId, channel, value) {
+function setEffect(groupId, channelNumber, value) {
   if (effectTypes[groupId] === "expression") {
-    midy.setControlChange(channel, 11, value);
+    midy.setControlChange(channelNumber, 11, value);
   } else {
-    midy.setControlChange(channel, 74, value);
+    midy.setControlChange(channelNumber, 74, value);
   }
 }
 
@@ -173,7 +173,8 @@ function calcContinuousPitchBend(event, state) {
   } else {
     state.bendDirection = null;
   }
-  const sensitivity = midy.channels[state.channel].state.pitchWheelSensitivity *
+  const sensitivity =
+    midy.channels[state.channelNumber].state.pitchWheelSensitivity *
     128 * 2;
   return Math.round(8192 + (8192 * semitoneDiff * ratio) / sensitivity);
 }
@@ -278,10 +279,10 @@ function calcVelocityFromY(event, padHit) {
   return toMidiValue(ratio);
 }
 
-function createMPEPointerState(channel, groupId) {
+function createMPEPointerState(channelNumber, groupId) {
   return {
     groupId,
-    channel,
+    channelNumber,
     baseNotes: new Set(),
     padHits: new Set(),
     basePadHits: [],
@@ -324,9 +325,9 @@ function releaseChannel(groupId, channelNumber) {
 
 function getOrCreateState(pointerId, groupId) {
   if (!mpePointers.has(pointerId)) {
-    const channel = allocChannel(groupId);
-    if (channel == null) return null;
-    mpePointers.set(pointerId, createMPEPointerState(channel, groupId));
+    const channelNumber = allocChannel(groupId);
+    if (channelNumber == null) return null;
+    mpePointers.set(pointerId, createMPEPointerState(channelNumber, groupId));
   }
   return mpePointers.get(pointerId);
 }
@@ -344,26 +345,26 @@ function mpePointerDown(event, padHit, state) {
         state.chordExpression = expression;
       }
     }
-    setEffect(state.groupId, state.channel, state.chordExpression);
+    setEffect(state.groupId, state.channelNumber, state.chordExpression);
     if (afterTouchEnabled) {
       state.baseArea = getPointerArea(event);
       state.pressure = 0;
       state.pressureDirection = 0;
-      midy.setChannelPressure(state.channel, 0);
+      midy.setChannelPressure(state.channelNumber, 0);
       state.pressureInterval = setInterval(() => {
         const next = clamp(state.pressure + state.pressureDirection, 0, 127);
         if (next === state.pressure) return;
         state.pressure = next;
-        midy.setChannelPressure(state.channel, state.pressure);
+        midy.setChannelPressure(state.channelNumber, state.pressure);
       }, 0);
     }
   }
   state.activeView = highlightPad(padHit, state.chordExpression);
   if (state.baseCenterNote == null) {
     state.baseCenterNote = note;
-    midy.setPitchBend(state.channel, 8192);
+    midy.setPitchBend(state.channelNumber, 8192);
   }
-  midy.noteOn(state.channel, note, 127);
+  midy.noteOn(state.channelNumber, note, 127);
   state.baseNotes.add(note);
   state.padHits.add(padHit);
   state.currentPadHit = padHit;
@@ -380,8 +381,8 @@ function mpePointerUp(event) {
     state.pressureInterval = null;
   }
   state.padHits.forEach(clearPadColor);
-  state.baseNotes.forEach((note) => midy.noteOff(state.channel, note));
-  releaseChannel(state.groupId, state.channel);
+  state.baseNotes.forEach((note) => midy.noteOff(state.channelNumber, note));
+  releaseChannel(state.groupId, state.channelNumber);
   mpePointers.delete(event.pointerId);
 }
 
@@ -477,7 +478,7 @@ function handlePointerDown(event, panel, groupId) {
     } else {
       state.chordExpression = 64;
     }
-    setEffect(state.groupId, state.channel, state.chordExpression);
+    setEffect(state.groupId, state.channelNumber, state.chordExpression);
   } else {
     state.basePadHits = [];
   }
@@ -536,7 +537,7 @@ function handlePointerMove(event) {
     }
     const expression = calcExpressionFromMovement(event, state);
     if (expression !== null) {
-      setEffect(state.groupId, state.channel, expression);
+      setEffect(state.groupId, state.channelNumber, expression);
       hits.forEach((padHit) => highlightPad(padHit, expression));
     } else {
       hits.forEach((padHit) => highlightPad(padHit, state.chordExpression));
@@ -545,11 +546,11 @@ function handlePointerMove(event) {
     return;
   }
   const bend = calcContinuousPitchBend(event, state);
-  midy.setPitchBend(state.channel, bend);
+  midy.setPitchBend(state.channelNumber, bend);
   const expression = calcExpressionFromMovement(event, state);
   const vel = expression ?? state.chordExpression;
   if (expression !== null) {
-    setEffect(state.groupId, state.channel, expression);
+    setEffect(state.groupId, state.channelNumber, expression);
   }
   hits.forEach((p) => highlightPad(p, vel));
   state.padHits = newHitSet;
