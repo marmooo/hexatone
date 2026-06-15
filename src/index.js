@@ -1,4 +1,4 @@
-import { Midy } from "https://cdn.jsdelivr.net/gh/marmooo/midy@0.5.2/dist/midy.min.js";
+import { Midy } from "https://cdn.jsdelivr.net/gh/marmooo/midy@0.5.6/dist/midy.min.js";
 
 function toggleDarkMode() {
   const html = document.documentElement;
@@ -892,9 +892,9 @@ await Promise.all([
   midy.loadSoundFont(`${soundFontURL}/128.sf3`),
 ]);
 for (let i = 0; i < 16; i++) {
-  midy.setPitchBendRange(i, 1200);
+  midy.channels[i].setPitchBendRange(1200);
 }
-midy.setBankMSB(9, 121);
+midy.channels[9].setBankMSB(9, 121);
 midy.setProgramChange(9, 0);
 midy.setMIDIPolyphonicExpression(0, 7);
 midy.setMIDIPolyphonicExpression(15, 7);
