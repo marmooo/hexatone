@@ -362,7 +362,9 @@ function mpePointerDown(event, padHit, state) {
   state.activeView = highlightPad(padHit, state.chordExpression);
   if (state.baseCenterNote == null) {
     state.baseCenterNote = note;
-    midy.setPitchBend(state.channelNumber, 8192);
+    if (bendEnabled[state.groupId]) {
+      midy.channels[state.channelNumber].setPitchBendRange(8192);
+    }
   }
   midy.noteOn(state.channelNumber, note, 127);
   state.baseNotes.add(note);
@@ -384,6 +386,30 @@ function mpePointerUp(event) {
   state.baseNotes.forEach((note) => midy.noteOff(state.channelNumber, note));
   releaseChannel(state.groupId, state.channelNumber);
   mpePointers.delete(event.pointerId);
+}
+
+function syncNoteOnMove(event, state, hits) {
+  const hitMap = new Map(hits.map((h) => [Number(h.dataset.index), h]));
+  for (const note of [...state.baseNotes]) {
+    if (!hitMap.has(note)) {
+      midy.noteOff(state.channelNumber, note);
+      state.baseNotes.delete(note);
+    }
+  }
+  for (const [note] of hitMap) {
+    if (!state.baseNotes.has(note)) {
+      midy.noteOn(state.channelNumber, note, 127);
+      state.baseNotes.add(note);
+    }
+  }
+  state.currentPadHit = hits[0] ?? state.currentPadHit;
+  const expression = calcExpressionFromMovement(event, state);
+  const vel = expression ?? state.chordExpression;
+  if (expression !== null) {
+    state.chordExpression = expression;
+    setEffect(state.groupId, state.channelNumber, expression);
+  }
+  hits.forEach((p) => highlightPad(p, vel));
 }
 
 function isPointInSharedEdgeRect(event, pad1, pad2) {
@@ -505,6 +531,11 @@ function handlePointerMove(event) {
   state.padHits.forEach((padHit) => {
     if (!newHitSet.has(padHit)) clearPadColor(padHit);
   });
+  if (!bendEnabled[state.groupId]) {
+    syncNoteOnMove(event, state, hits);
+    state.padHits = newHitSet;
+    return;
+  }
   if (hits.length === 2 && state.baseNotes.size === 1) {
     const pad = hits.find((p) => Number(p.dataset.index) !== state.fromNote);
     if (pad) {
@@ -815,10 +846,18 @@ function initConfig() {
   document.getElementById("config").querySelectorAll("div.col")
     .forEach((config, groupId) => {
       const channelNumber = groupId === 0 ? 0 : 15;
+      initMode(config, groupId);
       initEffect(config, groupId);
       initDrumToggle(config, channelNumber);
       initRangeControls(config, channelNumber, ccHandlers);
     });
+}
+
+function initMode(config, groupId) {
+  const form = config.querySelectorAll("form")[0];
+  form.addEventListener("change", (event) => {
+    bendEnabled[groupId] = event.target.value === "bend";
+  });
 }
 
 function initEffect(config, groupId) {
@@ -879,6 +918,7 @@ const noteMap = {
 const afterTouchEnabled = true;
 const currOctaves = [4, 4];
 const effectTypes = ["expression", "expression"];
+const bendEnabled = [true, true];
 let handMode = 1;
 
 const hexRadius = 60;
@@ -895,7 +935,7 @@ await Promise.all([
 for (let i = 0; i < 16; i++) {
   midy.channels[i].setPitchBendRange(1200);
 }
-midy.channels[9].setBankMSB(9, 121);
+midy.channels[9].setBankMSB(121);
 midy.setProgramChange(9, 0);
 midy.setMIDIPolyphonicExpression(0, 7);
 midy.setMIDIPolyphonicExpression(15, 7);
