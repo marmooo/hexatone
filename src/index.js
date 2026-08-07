@@ -1,4 +1,4 @@
-import { Midy } from "https://cdn.jsdelivr.net/gh/marmooo/midy@0.5.8/dist/midy.min.js";
+import { Midy } from "https://cdn.jsdelivr.net/gh/marmooo/midy@0.6.0/dist/midy.min.js";
 
 function toggleDarkMode() {
   const html = document.documentElement;
@@ -305,27 +305,9 @@ function createMPEPointerState(channelNumber, groupId) {
   };
 }
 
-function allocChannel(groupId) {
-  if (groupId === 0) return lowerFreeChannels.shift() ?? null;
-  if (groupId === 1) return upperFreeChannels.shift() ?? null;
-  return null;
-}
-
-function releaseChannel(groupId, channelNumber) {
-  midy.setPitchBend(channelNumber, 8192);
-  setEffect(groupId, channelNumber, 64);
-  if (1 <= channelNumber && channelNumber <= midy.lowerMPEMembers) {
-    lowerFreeChannels.push(channelNumber);
-    return;
-  }
-  if (15 - midy.upperMPEMembers <= channelNumber && channelNumber <= 14) {
-    upperFreeChannels.push(channelNumber);
-  }
-}
-
 function getOrCreateState(pointerId, groupId) {
   if (!mpePointers.has(pointerId)) {
-    const channelNumber = allocChannel(groupId);
+    const channelNumber = midy.allocMPEChannel(groupId);
     if (channelNumber == null) return null;
     mpePointers.set(pointerId, createMPEPointerState(channelNumber, groupId));
   }
@@ -384,7 +366,7 @@ function mpePointerUp(event) {
   }
   state.padHits.forEach(clearPadColor);
   state.baseNotes.forEach((note) => midy.noteOff(state.channelNumber, note));
-  releaseChannel(state.groupId, state.channelNumber);
+  midy.releaseMPEChannel(state.groupId, state.channelNumber);
   mpePointers.delete(event.pointerId);
 }
 
@@ -895,8 +877,6 @@ function initRangeControls(config, channelNumber, ccHandlers) {
   });
 }
 
-const lowerFreeChannels = Array.from({ length: 7 }, (_, i) => i + 1);
-const upperFreeChannels = Array.from({ length: 7 }, (_, i) => i + 8);
 const mpeHitMap = new Map();
 const mpePointers = new Map();
 
