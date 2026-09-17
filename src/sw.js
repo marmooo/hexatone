@@ -1,4 +1,4 @@
-const cacheName = "2026-09-08 00:00";
+const cacheName = "2026-09-18 00:00";
 const urlsToCache = [
   "/hexatone/index.js",
   "/hexatone/favicon/favicon.svg",
