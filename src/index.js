@@ -315,7 +315,9 @@ function getOrCreateState(pointerId, groupId) {
 }
 
 function mpePointerDown(event, padHit, state) {
-  padHit.setPointerCapture(event.pointerId);
+  // Do not call setPointerCapture on padHit — the panel (SVG) already
+  // captures the pointer. Capturing on multiple elements for the same
+  // pointerId can leave capture stuck when events are cancelled.
   const note = Number(padHit.dataset.index);
   if (state.baseNotes.has(note)) return;
   if (state.baseNotes.size === 0) {
@@ -366,7 +368,8 @@ function mpePointerUp(event) {
   }
   state.padHits.forEach(clearPadColor);
   state.baseNotes.forEach((note) => midy.noteOff(state.channelNumber, note));
-  midy.releaseMPEChannel(state.groupId, state.channelNumber);
+  // Midy.releaseMPEChannel takes only the channel number (not zone/groupId).
+  midy.releaseMPEChannel(state.channelNumber);
   mpePointers.delete(event.pointerId);
 }
 
@@ -449,7 +452,6 @@ function findBestPairFromHits(event, hits) {
 
 function handlePointerDown(event, panel, groupId) {
   if (!isInsidePanel(event)) return;
-  panel.setPointerCapture(event.pointerId);
   const hits = document.elementsFromPoint(event.clientX, event.clientY)
     .filter((el) => el.classList?.contains("pad-hit"));
   if (hits.length === 0 || hits.length > 2) {
@@ -465,6 +467,13 @@ function handlePointerDown(event, panel, groupId) {
 
   const state = getOrCreateState(event.pointerId, groupId);
   if (!state) return;
+
+  // Capture only after we know we have a valid hit and free MPE channel.
+  // Otherwise a stuck capture makes subsequent presses unresponsive.
+  try {
+    panel.setPointerCapture(event.pointerId);
+  } catch { /* already captured or invalid */ }
+
   state.baseNotes.clear();
   state.padHits.clear();
   state.baseCenterNote = null;
@@ -570,12 +579,32 @@ function handlePointerMove(event) {
 }
 
 function handlePointerUp(event, panel) {
-  if (!mpeHitMap.has(event.pointerId)) return;
-  mpePointerUp(event);
-  mpeHitMap.get(event.pointerId).clear();
-  mpeHitMap.delete(event.pointerId);
+  // Always try to release capture and clean up state, even if the
+  // pointerId was never entered into mpeHitMap (e.g. channel alloc failed
+  // after an older code path set capture). Stuck capture is what makes
+  // the pads become unresponsive.
+  if (mpeHitMap.has(event.pointerId)) {
+    mpePointerUp(event);
+    mpeHitMap.get(event.pointerId).clear();
+    mpeHitMap.delete(event.pointerId);
+  } else {
+    // Fallback: if state exists without mpeHitMap entry, still release MPE.
+    const state = mpePointers.get(event.pointerId);
+    if (state) {
+      if (state.pressureInterval !== null) {
+        clearInterval(state.pressureInterval);
+        state.pressureInterval = null;
+      }
+      state.padHits.forEach(clearPadColor);
+      state.baseNotes.forEach((note) => midy.noteOff(state.channelNumber, note));
+      midy.releaseMPEChannel(state.channelNumber);
+      mpePointers.delete(event.pointerId);
+    }
+  }
   try {
-    panel.releasePointerCapture(event.pointerId);
+    if (panel.hasPointerCapture(event.pointerId)) {
+      panel.releasePointerCapture(event.pointerId);
+    }
   } catch { /* skip */ }
 }
 
@@ -590,6 +619,11 @@ function setMPEKeyEvents(panel, groupId) {
     "pointercancel",
     (event) => handlePointerUp(event, panel),
   );
+  // Browser may revoke capture (system gesture, another element, etc.)
+  // without a clean pointerup. Clean up so channels and capture don't leak.
+  panel.addEventListener("lostpointercapture", (event) => {
+    handlePointerUp(event, panel);
+  });
 }
 
 function isInsidePanel(event) {
